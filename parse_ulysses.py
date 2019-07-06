@@ -2,6 +2,7 @@ import os
 from os.path import join
 import subprocess
 import biplist  # the built in plistlib does not support binary plist files.
+import xml.etree.ElementTree as ET
 
 from pyexpat import ExpatError
 
@@ -93,13 +94,33 @@ class Sheet(Node):
         Node.__init__(self, dirpath, parent_group)
         self.dirpath = dirpath
         self.openable_file = dirpath
-        _sheet_text_path = join(self.dirpath, 'Text.txt')
-        if os.path.exists(_sheet_text_path):
-            with open(_sheet_text_path, 'r') as f:
-                self.first_line = f.readline().decode('utf-8').strip()
+
+        _sheet_xml_path = join(self.dirpath, 'Content.xml')
+        if os.path.exists(_sheet_xml_path):
+            self.first_line = self._get_first_line_from_xml(_sheet_xml_path)
         else:
-            self.first_line = "Unknown Type"
+            _sheet_text_path = join(self.dirpath, 'Text.txt')
+            if os.path.exists(_sheet_text_path):
+                with open(_sheet_text_path, 'r') as f:
+                    self.first_line = f.readline().decode('utf-8').strip()
+            else:
+                self.first_line = "Unknown Type"
         self.title = self.first_line
+
+    def _get_first_line_from_xml(self, path):
+        # Worth noting: this format is not an API. It first appeared in Ulysses 16. We'll want to be reasonably defensive here because it may change over time.
+
+        # We incrementally parse the XML...
+        for _, elem in ET.iterparse(path, parser=ET.XMLParser(encoding='utf-8')):
+            # ...until we've parsed the first <p> tag
+            if elem.tag == "p":
+                # The paragraph may still have child tags. Here's an example:
+                #   <p><tags><tag kind="heading1"># </tag></tags>Test note</p>
+                # So we'll concatenate all text nodes in this paragraph to get the line.
+                return "".join(elem.itertext()).strip()
+
+        # This XML didn't contain any <p> tags. That might be OK: new sheets don't have any <p> tags.
+        return ""
 
 
 def filter_nodes_by_openable_file(nodes, openable_file_list):
