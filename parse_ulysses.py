@@ -97,9 +97,7 @@ class Sheet(Node):
 
         _sheet_xml_path = join(self.dirpath, 'Content.xml')
         if os.path.exists(_sheet_xml_path):
-            # self.first_line = "XML"
             self.first_line = self._get_first_line_from_xml(_sheet_xml_path)
-            # print "first line: ", self.first_line.encode("ascii", "ignore")
         else:
             _sheet_text_path = join(self.dirpath, 'Text.txt')
             if os.path.exists(_sheet_text_path):
